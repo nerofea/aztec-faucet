@@ -93,7 +93,7 @@ if (networkArg !== undefined && networkArg !== "testnet") {
   die(`Unknown --network value "${networkArg}". Only "testnet" is supported.`);
 }
 
-const TESTNET_NODE_URL = "https://v5.testnet.rpc.aztec-labs.com";
+const TESTNET_NODE_URL = "https://aztec-testnet.drpc.org";
 const TESTNET_EXPLORER_TX_URL = "https://testnet.aztecscan.xyz/tx-effects";
 
 const network = "testnet";
@@ -131,6 +131,35 @@ let Fr;
     ({ Fr } = await import(`${SDK}/aztec.js/fields`));
   }
 }
+
+// ── Aztec v6 migration compatibility ────────────────────────────────────────
+//
+// The v5 implementation derives a Schnorr message signing key
+// from the account secret using
+// deriveMasterMessageSigningSecretKey().
+//
+// Aztec v6 introduces GrumpkinScalar signing keys and documents
+// deriveSecretKeyFromSigningKey() for deriving the associated
+// privacy secret.
+//
+// Do not substitute a randomly generated signing key when
+// recovering an existing faucet account.
+//
+// Before changing the account-creation implementation:
+// 1. Verify the exact SDK exports for the installed release.
+// 2. Derive the original account address using the original SDK.
+// 3. Derive the migrated account address using the v6 SDK.
+// 4. Require both addresses to match the faucet recipient.
+// 5. Confirm that the bridge message belongs to the current
+//    L2 rollup deployment and is unconsumed.
+//
+// The exact 6.0.0-rc.3 package exports and address compatibility
+// have not yet been verified. The code below retains the original
+// account derivation pending those checks.
+//
+// No claim transaction should be submitted until these
+// compatibility checks succeed.
+// ────────────────────────────────────────────────────────────────────────────
 
 console.log(`
   Aztec Fee Juice Claim  ·  ${network}
@@ -235,8 +264,8 @@ try {
     if (txHash !== "n/a") console.log(`  ${_C.di}explorer${_C.rs}  ${link(explorerUrl)}\n`);
   }
 
-  const _branch = process.env.REPO_BRANCH || "main";
-  console.log(`  ${_C.di}check balance${_C.rs}\n  curl -fsSL https://raw.githubusercontent.com/NethermindEth/aztec-faucet/${_branch}/sh/${network}/check-balance.sh | sh -s -- --address ${address.toString()}\n`);
+  const _branch = process.env.REPO_BRANCH || "aztec-v6-rc3";
+  console.log(`  ${_C.di}check balance${_C.rs}\n  curl -fsSL https://raw.githubusercontent.com/Nerofea/aztec-faucet/${_branch}/sh/${network}/check-balance.sh | sh -s -- --address ${address.toString()}\n`);
 
   await wallet.stop();
   process.exit(0);
